@@ -1,15 +1,29 @@
 var createError = require('http-errors');
 var express = require('express');
+var session = require('express-session');
 var path = require('path');
 var logger = require('morgan');
 const passport = require('passport');
 const config = require('./config');
+
+const crypto = require('crypto');
+
+// Generate a random string of specified length
+function generateRandomString(length) {
+    return crypto.randomBytes(Math.ceil(length / 2))
+        .toString('hex')
+        .slice(0, length);
+}
+
+// Generate a random secret key
+const secretKey = generateRandomString(32);
 
 var indexRouter = require('./routes/index');
 var usersRouter = require('./routes/users');
 const campsiteRouter = require('./routes/campsiteRouter');
 const promotionRouter = require('./routes/promotionRouter');
 const partnerRouter = require('./routes/partnerRouter');
+const uploadRouter = require('./routes/uploadRouter');
 
 const mongoose = require('mongoose');
 
@@ -26,6 +40,14 @@ connect.then(() => console.log('Connected correctly to server'),
 );
 
 var app = express();
+
+// Add the express-session middleware with a secret key
+app.use(session({
+    secret: secretKey, // Use the generated secret key
+    resave: false,
+    saveUninitialized: false
+}));
+
 
 // Secure traffic only
 app.all('*', (req, res, next) => {
@@ -48,6 +70,7 @@ app.use(express.urlencoded({ extended: false }));
 
 
 app.use(passport.initialize());
+app.use(passport.session());
 
 app.use('/', indexRouter);
 app.use('/users', usersRouter);
@@ -57,6 +80,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 app.use('/campsites', campsiteRouter);
 app.use('/promotions', promotionRouter);
 app.use('/partners', partnerRouter);
+app.use('/imageUpload', uploadRouter);
 
 // catch 404 and forward to error handler
 app.use(function (req, res, next) {
